@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-a function that Contains the class DBStorage
+Contains the class DBStorage
 """
 
 import models
@@ -21,7 +21,7 @@ classes = {"Amenity": Amenity, "City": City,
 
 
 class DBStorage:
-    """the dbstorage function that interacts with the  database"""
+    """interaacts with the MySQL database"""
     __engine = None
     __session = None
 
@@ -41,7 +41,7 @@ class DBStorage:
             Base.metadata.drop_all(self.__engine)
 
     def all(self, cls=None):
-        """a function that does a query on the current database session"""
+        """query on the current database session"""
         new_dict = {}
         for clss in classes:
             if cls is None or cls is classes[clss] or cls is clss:
@@ -52,40 +52,49 @@ class DBStorage:
         return (new_dict)
 
     def new(self, obj):
-        """a function that adds on to the current database session"""
+        """add the object to the current database session"""
         self.__session.add(obj)
 
     def save(self):
-        """a function that saves the current database session"""
+        """commit all changes of the current database session"""
         self.__session.commit()
 
     def delete(self, obj=None):
-        """a function that deletes the current database session"""
+        """delete from the current database session obj if not None"""
         if obj is not None:
             self.__session.delete(obj)
 
     def reload(self):
-        """a function that reloads the current database session"""
+        """reloads data from the database"""
         Base.metadata.create_all(self.__engine)
         sess_factory = sessionmaker(bind=self.__engine, expire_on_commit=False)
         Session = scoped_session(sess_factory)
         self.__session = Session
 
     def close(self):
-        """a function that closes the current database session"""
+        """call remove() method on the private session attribute"""
         self.__session.remove()
 
+    # Task 2 - adding get and count methods
+
     def get(self, cls, id):
-        """a function thatgets what is in the current database session"""
-        if cls and id:
-            tempo = cls, __name__ + "." + id
-            count = self.all(cls)
-            for key in count:
-                if key == tempo:
-                    return count[key]
-        else:
-            return None
+        """
+        Returns the object based on the class name and its ID, or None if not
+        found
+        """
+        objects = self.__session.query(classes[cls])
+        for obj in objects:
+            if obj.id == id:
+                return obj
+        return None
 
     def count(self, cls=None):
-        """a function that counts what is in the current database session"""
-        return (len(self.all(cls)))
+        """
+        Returns the number of objects in storage matching the given class name.
+        If no name is passed, returns the count of all objects in storage.
+        """
+        nobjects = 0
+        for clss in classes:
+            if cls is None or cls is classes[clss] or cls is clss:
+                nobjects += len(self.__session.query(classes[clss]).all())
+        return nobjects
