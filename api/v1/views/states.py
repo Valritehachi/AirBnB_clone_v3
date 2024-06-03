@@ -1,74 +1,67 @@
 #!/usr/bin/python3
-''' a function thatis used to define the State objects'''
-
-from flask import Flask
-from flask import Flask, abort
+""" View for State objects that handles default API actions """
 from api.v1.views import app_views
-from os import name
+from flask import jsonify, abort, make_response, request
+from models import storage
 from models.state import State
-from flask import request
 
 
-@app_views.route('/status', methods=['GET'] strict_slashes=False)
-def toGet():
-    ''' a function that is used to get a thing from the database'''
-    objects = storage.all('State')
-    lista = []
-    for state in objects.values():
-        lista.append(state.to_dict())
-    return jsonify(lista)
+@app_views.route('/states', methods=['GET'], strict_slashes=False)
+def states():
+    """ Retrieves the list of all State objects """
+    d_states = storage.all(State)
+    return jsonify([obj.to_dict() for obj in d_states.values()])
 
 
-@app_views.route('/states/<string:stateid>', methods=['GET'],
-                 strict_slashes=False)
-def toGetid():
-    ''' a function that is used to get an id from the database'''
-    objects = storage.get('State', 'state_id')
-    if objects is None:
+@app_views.route('/states/<state_id>', methods=['GET'], strict_slashes=False)
+def r_state_id(state_id):
+    """ Retrieves a State object """
+    state = storage.get("State", state_id)
+    if not state:
         abort(404)
-    return jsonify(objects.to_dict()), 'OK'
-
-
-@app_views.route('/states/', methods=['POST'],
-                 strict_slashes=False)
-def posting():
-    ''' a function that is used to post to the database'''
-    response = request.get_json()
-    if response id None:
-        abort(400, {'Not a JSON'})
-    if "name" not in response:
-        abort(400, {'Missing name'})
-    stateObject = State(name=response['name'])
-    storage.new(stateObject)
-    storage.save()
-    return jsonify(stateObject.to_dict()), '201'
-
-
-@app_views.route('/states/<state_id>', methods=['PUT'],
-                 strict_slashes=False)
-def putinV():
-    ''' a function that is used to putinv from the database'''
-    response = request.get_json()
-    if response id None:
-        abort(400, {'Not a JSON'})
-    stateObject = storage.get(State, state_id)
-    if stateObject is None:
-        abort(404)
-    ignoreKeys = ['id', 'created_at', 'updated_at']
-    for key in response.items():
-        if key not in ignoreKeys:
-            setattr(stateObject, key)
-    storage.save()
-    return jsonify(stateObject.to_dict()), '200'
+    return jsonify(state.to_dict())
 
 
 @app_views.route('/states/<state_id>', methods=['DELETE'],
                  strict_slashes=False)
-def deleting():
-    ''' a function that is used to delete from the database'''
-    stateObject = storage.get(State, state_id)
-    if stateObject is None:
+def del_state(state_id):
+    """ Deletes a State object """
+    state = storage.get("State", state_id)
+    if not state:
         abort(404)
-    storage.delete(stateObject)
+    state.delete()
     storage.save()
-    return jsonify({}), '200'
+    return make_response(jsonify({}), 200)
+
+
+@app_views.route('/states', methods=['POST'], strict_slashes=False)
+def post_state():
+    """ Creates a State object """
+    new_state = request.get_json()
+    if not new_state:
+        abort(400, "Not a JSON")
+    if "name" not in new_state:
+        abort(400, "Missing name")
+    state = State(**new_state)
+    storage.new(state)
+    storage.save()
+    return make_response(jsonify(state.to_dict()), 201)
+
+
+@app_views.route('/states/<state_id>', methods=['PUT'], strict_slashes=False)
+def put_state(state_id):
+    """ Updates a State object """
+    state = storage.get("State", state_id)
+    if not state:
+        abort(404)
+
+    body_request = request.get_json()
+    if not body_request:
+        abort(400, "Not a JSON")
+
+    for k, v in body_request.items():
+        if k != 'id' and k != 'created_at' and k != 'updated_at':
+            setattr(state, k, v)
+
+    storage.save()
+    return make_response(jsonify(state.to_dict()), 200)
